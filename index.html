@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCADA HydroControl AB Mix - Sistem Komputer IoT</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Inter & JetBrains Mono untuk Nuansa Engineering/Telemetry -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #070b14;
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+                linear-gradient(to right, rgba(30, 41, 59, 0.25) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(30, 41, 59, 0.25) 1px, transparent 1px);
+            background-size: 100% 100%, 28px 28px, 28px 28px;
+        }
+        .font-mono-tech {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .tech-card {
+            background: rgba(15, 23, 42, 0.78);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.65);
+            box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+        }
+        .tech-card:hover {
+            border-color: rgba(16, 185, 129, 0.35);
+        }
+        /* Animasi pulse LED aktuator */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.9; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+        .pulse-active::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 9999px;
+            border: 2px solid currentColor;
+            animation: pulse-ring 1.4s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="text-slate-200 antialiased min-h-screen flex flex-col selection:bg-emerald-500/30 selection:text-emerald-200">
+
+    <!-- Top Navigation Bar (SCADA Header) -->
+    <header class="bg-slate-950/85 backdrop-blur-md border-b border-slate-800/80 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3.5">
+                <div class="relative bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 p-2 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                    <i data-lucide="cpu" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-bold text-slate-100 text-sm sm:text-base tracking-tight">
+                            HYDRO-SCADA <span class="text-emerald-400 font-mono-tech text-xs sm:text-sm">[ESP32-NODE-01]</span>
+                        </h1>
+                        <span class="hidden md:inline-block px-2 py-0.5 text-[10px] font-mono-tech uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded">
+                            v2.6-THESIS
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 hidden sm:block font-mono-tech">
+                        SYS.KOMP UNIV. ROYAL // SYUHADA ALHAFIZ (23210058)
+                    </p>
+                </div>
+            </div>
+
+            <!-- Status Koneksi & Setup -->
+            <div class="flex items-center gap-2.5 sm:gap-3">
+                <div id="gsheets-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono-tech bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="gsheets-status-text">DB: LOCAL_CACHE</span>
+                </div>
+                <button onclick="openModal('setupModal')" class="flex items-center gap-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 text-xs font-mono-tech font-medium px-3.5 py-2 rounded-lg transition shadow-[0_0_15px_rgba(16,185,129,0.12)]">
+                    <i data-lucide="terminal" class="w-4 h-4"></i>
+                    <span>CONFIG G-SHEETS</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Banner Peringatan Sistem / Diagnostic Alert -->
+        <div id="system-banner" class="hidden rounded-xl p-4 border backdrop-blur-md flex items-start justify-between gap-4 transition-all">
+            <div class="flex items-start gap-3">
+                <i id="banner-icon" data-lucide="alert-triangle" class="w-5 h-5 mt-0.5 shrink-0"></i>
+                <div>
+                    <h3 id="banner-title" class="font-mono-tech font-bold text-xs uppercase tracking-wider">SYSTEM DIAGNOSTIC</h3>
+                    <p id="banner-message" class="text-xs sm:text-sm mt-1 opacity-90"></p>
+                </div>
+            </div>
+            <button onclick="dismissBanner()" class="text-xs font-mono-tech uppercase px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 transition">
+                [ACK]
+            </button>
+        </div>
+
+        <!-- Grid Kartu Telemetri Sensor (TDS, pH, Suhu, FSM State) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- Kartu 1: Sensor TDS (Primary Control Variable) -->
+            <div class="tech-card rounded-2xl p-5 relative overflow-hidden transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-mono-tech uppercase tracking-wider text-slate-400">CH0 // TDS SENSOR</span>
+                    <div class="p-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline gap-2 my-1">
+                    <span id="val-tds" class="text-4xl font-bold font-mono-tech text-emerald-400 tracking-tight drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]">685</span>
+                    <span class="text-xs font-mono-tech text-slate-400">PPM (0.5)</span>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-xs">
+                    <span class="text-slate-400 font-mono-tech text-[11px]">SET: <strong id="display-range" class="text-slate-200">600-800</strong></span>
+                    <span id="badge-tds-state" class="px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">IN_RANGE</span>
+                </div>
+                <!-- Progress bar visual rentang TDS -->
+                <div class="w-full bg-slate-800/90 h-1.5 rounded-full mt-3 overflow-hidden border border-slate-700/50">
+                    <div id="bar-tds" class="bg-emerald-400 h-full transition-all duration-500 shadow-[0_0_8px_#34d399]" style="width: 68%"></div>
+                </div>
+            </div>
+
+            <!-- Kartu 2: Sensor pH (Monitoring) -->
+            <div class="tech-card rounded-2xl p-5 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-mono-tech uppercase tracking-wider text-slate-400">CH1 // PH ELECTRODE</span>
+                    <div class="p-1.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-lg">
+                        <i data-lucide="droplets" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline gap-2 my-1">
+                    <span id="val-ph" class="text-4xl font-bold font-mono-tech text-cyan-400 tracking-tight drop-shadow-[0_0_8px_rgba(34,211,238,0.25)]">6.2</span>
+                    <span class="text-xs font-mono-tech text-slate-400">pH</span>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-xs">
+                    <span class="text-slate-400 font-mono-tech text-[11px]">MODE: <strong class="text-slate-200">MONITOR</strong></span>
+                    <span id="badge-ph-state" class="px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">OPTIMAL</span>
+                </div>
+                <p class="text-[10px] font-mono-tech text-slate-500 mt-3">// MANUAL_PH_CORRECTION_ONLY</p>
+            </div>
+
+            <!-- Kartu 3: Sensor Suhu DS18B20 -->
+            <div class="tech-card rounded-2xl p-5 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-mono-tech uppercase tracking-wider text-slate-400">1-WIRE // DS18B20</span>
+                    <div class="p-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg">
+                        <i data-lucide="thermometer" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline gap-2 my-1">
+                    <span id="val-temp" class="text-4xl font-bold font-mono-tech text-amber-400 tracking-tight drop-shadow-[0_0_8px_rgba(251,191,36,0.25)]">25.4</span>
+                    <span class="text-xs font-mono-tech text-slate-400">°C</span>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-xs">
+                    <span class="text-slate-400 font-mono-tech text-[11px]">ATC COMP:</span>
+                    <span class="px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">ENABLED</span>
+                </div>
+                <p class="text-[10px] font-mono-tech text-slate-500 mt-3">// TANK_VOL: 10.0L • LACTUCA_SATIVA</p>
+            </div>
+
+            <!-- Kartu 4: Finite State Machine (FSM) ESP32 -->
+            <div class="tech-card rounded-2xl p-5 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-mono-tech uppercase tracking-wider text-slate-400">MCU // FSM STATE</span>
+                    <div class="p-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-lg">
+                        <i data-lucide="git-commit" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="my-1.5">
+                    <span id="val-control-state" class="text-base sm:text-lg font-bold font-mono-tech text-purple-300 tracking-tight">PEMANTAUAN</span>
+                </div>
+                <div class="mt-3 space-y-1.5 text-[11px] font-mono-tech">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">CUM_DOSE:</span>
+                        <span class="text-slate-200"><span id="val-cum-dose" class="text-emerald-400 font-bold">0</span> / <span id="val-max-dose">100</span> mL</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">LAST_SYNC:</span>
+                        <span id="val-last-update" class="text-slate-300">--:--:--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bagian Tengah: Oscilloscope / Telemetry Chart & Hardware Actuator Panel -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Kolom Kiri (2/3): Real-Time Telemetry Graph -->
+            <div class="lg:col-span-2 tech-card rounded-2xl p-5 flex flex-col">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-800">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                            <h2 class="font-bold text-slate-100 text-sm sm:text-base tracking-tight">REAL-TIME TELEMETRY & STEP RESPONSE</h2>
+                        </div>
+                        <p class="text-xs text-slate-400 font-mono-tech mt-0.5">Grafik respons TDS (ppm) terhadap injeksi dosis bertahap AB Mix</p>
+                    </div>
+                    <div class="flex items-center gap-3 text-[11px] font-mono-tech">
+                        <span class="flex items-center gap-1.5 text-emerald-400"><span class="w-2.5 h-0.5 bg-emerald-400"></span> TDS</span>
+                        <span class="flex items-center gap-1.5 text-rose-400"><span class="w-2.5 h-0.5 bg-rose-400 border-dashed"></span> HIGH (H)</span>
+                        <span class="flex items-center gap-1.5 text-amber-400"><span class="w-2.5 h-0.5 bg-amber-400 border-dashed"></span> LOW (L)</span>
+                    </div>
+                </div>
+                <div class="relative flex-1 min-h-[265px] w-full">
+                    <canvas id="tdsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Kolom Kanan (1/3): Relay/Driver Actuator Control & Algorithm Execution -->
+            <div class="tech-card rounded-2xl p-5 space-y-5 flex flex-col justify-between">
+                <div>
+                    <div class="pb-3 border-b border-slate-800 mb-4">
+                        <h2 class="font-bold text-slate-100 text-sm sm:text-base tracking-tight">ACTUATOR DRIVER & LOGIC</h2>
+                        <p class="text-xs text-slate-400 font-mono-tech mt-0.5">Dual-channel peristaltic dosing & mixing</p>
+                    </div>
+
+                    <!-- Indikator Aktuator -->
+                    <div class="space-y-2.5">
+                        <!-- Pompa Stok A -->
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div id="led-pump-a" class="relative w-3 h-3 rounded-full bg-slate-600 text-emerald-400"></div>
+                                <div>
+                                    <p class="text-xs font-bold font-mono-tech text-slate-200">GPIO_26 // POMPA STOK A</p>
+                                    <p class="text-[11px] font-mono-tech text-slate-400">q=<span id="cal-debit-a" class="text-slate-300">1.5</span>mL/s • t=<span id="cal-dur-a" class="text-emerald-400">3.3</span>s</p>
+                                </div>
+                            </div>
+                            <span id="status-pump-a" class="text-[11px] font-mono-tech font-bold px-2.5 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700">OFF</span>
+                        </div>
+
+                        <!-- Pompa Stok B -->
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div id="led-pump-b" class="relative w-3 h-3 rounded-full bg-slate-600 text-cyan-400"></div>
+                                <div>
+                                    <p class="text-xs font-bold font-mono-tech text-slate-200">GPIO_27 // POMPA STOK B</p>
+                                    <p class="text-[11px] font-mono-tech text-slate-400">q=<span id="cal-debit-b" class="text-slate-300">1.4</span>mL/s • t=<span id="cal-dur-b" class="text-cyan-400">3.6</span>s</p>
+                                </div>
+                            </div>
+                            <span id="status-pump-b" class="text-[11px] font-mono-tech font-bold px-2.5 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700">OFF</span>
+                        </div>
+
+                        <!-- Pompa Sirkulasi -->
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div class="relative w-3 h-3 rounded-full bg-emerald-400 text-emerald-400 pulse-active"></div>
+                                <div>
+                                    <p class="text-xs font-bold font-mono-tech text-slate-200">RELAY_01 // SIRKULASI</p>
+                                    <p class="text-[11px] font-mono-tech text-slate-400">Continuous Tank Mixing</p>
+                                </div>
+                            </div>
+                            <span class="text-[11px] font-mono-tech font-bold px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">ACTIVE</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Terminal Eksekusi Algoritma Bab 3.9 -->
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs space-y-2.5 shadow-inner">
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
+                        <span class="font-mono-tech text-[10px] uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                            <i data-lucide="terminal" class="w-3.5 h-3.5 text-emerald-400"></i> CONTROL_PIPELINE
+                        </span>
+                        <span id="algo-step-badge" class="text-emerald-400 font-mono-tech text-[10px] font-bold">IDLE / MONITOR</span>
+                    </div>
+                    <p id="algo-description" class="text-slate-300 font-mono-tech text-[11px] leading-relaxed">
+                        > TDS dalam rentang kerja (600–800 ppm). Aktuator dosis standby.
+                    </p>
+                    <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-800">
+                        <div id="algo-progress" class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Kalibrasi & Fault Injection / Scenario Simulator (Bab 3.11) -->
+        <div class="tech-card rounded-2xl p-5">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                <div>
+                    <h2 class="font-bold text-slate-100 text-sm sm:text-base tracking-tight">EXPERIMENTAL TESTBENCH & CALIBRATION PARAMETERS</h2>
+                    <p class="text-xs text-slate-400 font-mono-tech mt-0.5">Uji skenario kendali & fault-injection sesuai rancangan pengujian Bab 3.11</p>
+                </div>
+                <div class="flex flex-wrap gap-2 font-mono-tech">
+                    <button onclick="simulateScenario('low_tds')" class="px-3 py-2 rounded-lg text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition flex items-center gap-1.5">
+                        <i data-lucide="arrow-down-circle" class="w-3.5 h-3.5"></i>
+                        INJECT TDS &lt; L
+                    </button>
+                    <button onclick="simulateScenario('high_tds')" class="px-3 py-2 rounded-lg text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition flex items-center gap-1.5">
+                        <i data-lucide="alert-octagon" class="w-3.5 h-3.5"></i>
+                        INJECT TDS &gt; H
+                    </button>
+                    <button onclick="simulateScenario('sensor_error')" class="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 transition flex items-center gap-1.5">
+                        <i data-lucide="zap-off" class="w-3.5 h-3.5"></i>
+                        FAULT: SENSOR_ERR
+                    </button>
+                    <button onclick="resetSystem()" class="px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center gap-1.5 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        SYS_RESET
+                    </button>
+                </div>
+            </div>
+
+            <!-- Form Pengaturan Ambang & Kalibrasi Pompa -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 font-mono-tech">
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">LIMIT_L (ppm)</label>
+                    <input type="number" id="input-limit-l" value="600" class="w-full px-3 py-2 text-sm bg-slate-950/80 border border-slate-700 text-slate-100 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">LIMIT_H (ppm)</label>
+                    <input type="number" id="input-limit-h" value="800" class="w-full px-3 py-2 text-sm bg-slate-950/80 border border-slate-700 text-slate-100 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">DOSE_VOL (mL)</label>
+                    <input type="number" id="input-dose-vol" value="5" class="w-full px-3 py-2 text-sm bg-slate-950/80 border border-slate-700 text-slate-100 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">DEBIT_A (mL/s)</label>
+                    <input type="number" step="0.1" id="input-debit-a" value="1.5" class="w-full px-3 py-2 text-sm bg-slate-950/80 border border-slate-700 text-slate-100 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">DEBIT_B (mL/s)</label>
+                    <input type="number" step="0.1" id="input-debit-b" value="1.4" class="w-full px-3 py-2 text-sm bg-slate-950/80 border border-slate-700 text-slate-100 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 focus:outline-none">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="applyParameters()" class="w-full py-2 px-4 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold rounded-lg transition">
+                        APPLY_CONFIG
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabel Data Logger & Sinkronisasi Google Sheets -->
+        <div class="tech-card rounded-2xl overflow-hidden">
+            <div class="p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="font-bold text-slate-100 text-sm sm:text-base tracking-tight">EXPERIMENT DATA LOGGER & GOOGLE SHEETS SYNC</h2>
+                    <p class="text-xs text-slate-400 font-mono-tech mt-0.5">Struktur log serial/cloud sesuai Bab 3.7 untuk kalkulasi MAE, Bias & Kestabilan</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 font-mono-tech">
+                    <button onclick="syncFromGoogleSheets()" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition flex items-center gap-1.5">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                        FETCH_SHEETS
+                    </button>
+                    <button onclick="exportCSV()" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-1.5">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        EXPORT_CSV
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse font-mono-tech">
+                    <thead>
+                        <tr class="bg-slate-950/90 border-b border-slate-800 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            <th class="py-3 px-4">TIMESTAMP</th>
+                            <th class="py-3 px-4">SESSION</th>
+                            <th class="py-3 px-4">TDS (PPM)</th>
+                            <th class="py-3 px-4">PH</th>
+                            <th class="py-3 px-4">TEMP (°C)</th>
+                            <th class="py-3 px-4">STATUS</th>
+                            <th class="py-3 px-4">FSM_STATE</th>
+                            <th class="py-3 px-4">PUMP_A/B (s)</th>
+                            <th class="py-3 px-4">DB_SYNC</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-table-body" class="divide-y divide-slate-800/60 text-xs text-slate-300">
+                        <!-- Baris log diisi via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer Akademik -->
+    <footer class="bg-slate-950/90 border-t border-slate-800/80 py-4 mt-8 font-mono-tech">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-2">
+            <p>SYS_CONTROL_AB_MIX // <strong class="text-slate-300">SYUHADA ALHAFIZ (23210058)</strong></p>
+            <p>PRODI SISTEM KOMPUTER • UNIVERSITAS ROYAL • 2026</p>
+        </div>
+    </footer>
+
+    <!-- Modal Setup Google Sheets & Kode Apps Script -->
+    <div id="setupModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-200">
+            <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-xl">
+                        <i data-lucide="database" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-100 text-sm sm:text-base font-mono-tech">GOOGLE_SHEETS_API // INTEGRATION</h3>
+                        <p class="text-xs text-slate-400">Konfigurasi endpoint database spreadsheet untuk web & ESP32</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('setupModal')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-5 overflow-y-auto space-y-5 text-sm">
+                <!-- Input URL Web App Google Apps Script -->
+                <div class="bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-4 space-y-3">
+                    <label class="block font-mono-tech font-semibold text-emerald-400 text-xs uppercase tracking-wider">
+                        1. ENDPOINT URL GOOGLE APPS SCRIPT WEB APP
+                    </label>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input type="url" id="gsheets-url-input" placeholder="https://script.google.com/macros/s/AKfycbx.../exec" 
+                            class="flex-1 px-3.5 py-2 text-xs font-mono-tech bg-slate-950 border border-slate-700 text-slate-100 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:outline-none">
+                        <button onclick="saveGoogleSheetsUrl()" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono-tech text-xs font-bold rounded-lg transition shrink-0">
+                            CONNECT_DB
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400">
+                        Kosongkan jika ingin menjalankan mode pengujian lokal tanpa koneksi internet.
+                    </p>
+                </div>
+
+                <!-- Langkah-langkah Setup Google Sheets -->
+                <div class="space-y-2">
+                    <h4 class="font-bold text-slate-100 text-xs font-mono-tech uppercase tracking-wider text-cyan-400">2. PROSEDUR DEPLOYMENT SPREADSHEET:</h4>
+                    <ol class="list-decimal list-inside text-xs text-slate-300 space-y-1.5 leading-relaxed">
+                        <li>Buat <strong>Google Sheets</strong> baru (misal: <code class="text-emerald-400">DB_Hidroponik_Syuhada</code>).</li>
+                        <li>Isi baris ke-1 (Kolom A1 s/d I1) dengan header: <br>
+                            <code class="bg-slate-950 border border-slate-800 px-2 py-1 rounded text-cyan-300 block mt-1 font-mono-tech text-[11px]">Waktu | Sesi | TDS | pH | Suhu | Validitas | Status_Kontrol | Durasi_Pompa_A | Durasi_Pompa_B</code>
+                        </li>
+                        <li>Buka <strong>Ekstensi (Extensions) &rarr; Apps Script</strong>, lalu tempel kode berikut:</li>
+                    </ol>
+                </div>
+
+                <!-- Kode Google Apps Script -->
+                <div class="relative">
+                    <div class="flex items-center justify-between bg-slate-950 border border-slate-800 text-slate-400 px-3.5 py-2 rounded-t-xl text-xs font-mono-tech">
+                        <span>Code.gs</span>
+                        <button onclick="copyCode('apps-script-code')" class="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1.5">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i> COPY_SCRIPT
+                        </button>
+                    </div>
+                    <pre id="apps-script-code" class="bg-slate-950/90 border-x border-b border-slate-800 text-emerald-300 p-3.5 rounded-b-xl text-[11px] font-mono-tech overflow-x-auto leading-relaxed">function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  sheet.appendRow([
+    data.waktu || new Date().toLocaleString("id-ID"),
+    data.sesi || 1,
+    data.tds,
+    data.ph,
+    data.suhu,
+    data.validitas || "VALID",
+    data.status_kontrol,
+    data.durasi_a || 0,
+    data.durasi_b || 0
+  ]);
+  return ContentService.createTextOutput(JSON.stringify({"status": "success"}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var rows = sheet.getDataRange().getValues();
+  var result = [];
+  for (var i = 1; i < rows.length; i++) {
+    result.push({
+      waktu: rows[i][0], sesi: rows[i][1], tds: rows[i][2],
+      ph: rows[i][3], suhu: rows[i][4], validitas: rows[i][5],
+      status_kontrol: rows[i][6], durasi_a: rows[i][7], durasi_b: rows[i][8]
+    });
+  }
+  return ContentService.createTextOutput(JSON.stringify(result.slice(-30).reverse()))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                </div>
+
+                <div class="text-xs text-slate-400">
+                    <p><strong class="text-slate-200">3. Deploy:</strong> Klik <strong>Deploy &rarr; New deployment &rarr; Web app</strong> &rarr; Execute as: <strong>Me</strong> &rarr; Who has access: <strong>Anyone</strong> &rarr; Salin URL Web App ke form di atas.</p>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-800 bg-slate-950/50 flex justify-end">
+                <button onclick="closeModal('setupModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono-tech text-xs font-semibold rounded-lg transition">
+                    CLOSE_MODAL
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logika Sistem & Simulasi Algoritma Skripsi -->
+    <script>
+        lucide.createIcons();
+
+        let state = {
+            tds: 685,
+            ph: 6.2,
+            temp: 25.4,
+            limitL: 600,
+            limitH: 800,
+            doseVol: 5,
+            debitA: 1.5,
+            debitB: 1.4,
+            cumDose: 0,
+            maxCumDose: 100,
+            sessionNum: 1,
+            isValid: true,
+            controlState: 'PEMANTAUAN',
+            pumpA: false,
+            pumpB: false,
+            isDosingCycleRunning: false,
+            googleSheetsUrl: '',
+            logs: []
+        };
+
+        let tdsChart;
+        function initChart() {
+            const ctx = document.getElementById('tdsChart').getContext('2d');
+            const initialLabels = ['-50s', '-40s', '-30s', '-20s', '-10s', 'NOW'];
+            const initialData = [678, 680, 682, 684, 683, 685];
+
+            tdsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: initialLabels,
+                    datasets: [
+                        {
+                            label: 'TDS (ppm)',
+                            data: initialData,
+                            borderColor: '#34d399',
+                            backgroundColor: 'rgba(52, 211, 153, 0.12)',
+                            borderWidth: 2,
+                            tension: 0.25,
+                            fill: true,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#070b14',
+                            pointBorderColor: '#34d399',
+                            pointBorderWidth: 2
+                        },
+                        {
+                            label: 'Batas Atas (H)',
+                            data: Array(6).fill(state.limitH),
+                            borderColor: '#fb7185',
+                            borderWidth: 1.5,
+                            borderDash: [6, 4],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Batas Bawah (L)',
+                            data: Array(6).fill(state.limitL),
+                            borderColor: '#fbbf24',
+                            borderWidth: 1.5,
+                            borderDash: [6, 4],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            min: 400,
+                            max: 1000,
+                            grid: { color: 'rgba(51, 65, 85, 0.35)' },
+                            ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }
+                        },
+                        x: {
+                            grid: { color: 'rgba(51, 65, 85, 0.2)' },
+                            ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateUI() {
+            document.getElementById('val-tds').textContent = state.isValid ? Math.round(state.tds) : 'ERR';
+            document.getElementById('val-ph').textContent = state.isValid ? state.ph.toFixed(1) : '--';
+            document.getElementById('val-temp').textContent = state.isValid ? state.temp.toFixed(1) : '--';
+            document.getElementById('display-range').textContent = `${state.limitL}-${state.limitH}`;
+            document.getElementById('val-cum-dose').textContent = state.cumDose;
+            document.getElementById('val-max-dose').textContent = state.maxCumDose;
+            document.getElementById('val-control-state').textContent = state.controlState;
+            document.getElementById('val-last-update').textContent = new Date().toLocaleTimeString('id-ID');
+
+            const durA = (state.doseVol / state.debitA).toFixed(1);
+            const durB = (state.doseVol / state.debitB).toFixed(1);
+            document.getElementById('cal-debit-a').textContent = state.debitA;
+            document.getElementById('cal-dur-a').textContent = durA;
+            document.getElementById('cal-debit-b').textContent = state.debitB;
+            document.getElementById('cal-dur-b').textContent = durB;
+
+            const badgeTds = document.getElementById('badge-tds-state');
+            const barTds = document.getElementById('bar-tds');
+
+            if (!state.isValid) {
+                badgeTds.className = 'px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-slate-800 text-slate-400 border border-slate-700';
+                badgeTds.textContent = 'INVALID_SIG';
+                barTds.className = 'bg-slate-600 h-full transition-all duration-500';
+            } else if (state.tds < state.limitL) {
+                badgeTds.className = 'px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30';
+                badgeTds.textContent = 'BELOW_L';
+                barTds.className = 'bg-amber-400 h-full transition-all duration-500 shadow-[0_0_8px_#fbbf24]';
+            } else if (state.tds > state.limitH) {
+                badgeTds.className = 'px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30';
+                badgeTds.textContent = 'OVER_H_LIMIT';
+                barTds.className = 'bg-rose-500 h-full transition-all duration-500 shadow-[0_0_8px_#f43f5e]';
+            } else {
+                badgeTds.className = 'px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+                badgeTds.textContent = 'IN_RANGE';
+                barTds.className = 'bg-emerald-400 h-full transition-all duration-500 shadow-[0_0_8px_#34d399]';
+            }
+
+            const pct = Math.min(100, Math.max(0, (state.tds / 1000) * 100));
+            barTds.style.width = `${pct}%`;
+
+            updatePumpIndicator('a', state.pumpA);
+            updatePumpIndicator('b', state.pumpB);
+        }
+
+        function updatePumpIndicator(pump, isOn) {
+            const led = document.getElementById(`led-pump-${pump}`);
+            const status = document.getElementById(`status-pump-${pump}`);
+            if (isOn) {
+                led.className = `relative w-3 h-3 rounded-full ${pump === 'a' ? 'bg-emerald-400 text-emerald-400' : 'bg-cyan-400 text-cyan-400'} pulse-active`;
+                status.className = `text-[11px] font-mono-tech font-bold px-2.5 py-1 rounded ${pump === 'a' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'}`;
+                status.textContent = 'ON [RUN]';
+            } else {
+                led.className = 'relative w-3 h-3 rounded-full bg-slate-600';
+                status.className = 'text-[11px] font-mono-tech font-bold px-2.5 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700';
+                status.textContent = 'OFF';
+            }
+        }
+
+        function showBanner(type, title, message) {
+            const banner = document.getElementById('system-banner');
+            const bannerTitle = document.getElementById('banner-title');
+            const bannerMsg = document.getElementById('banner-message');
+            
+            banner.classList.remove('hidden', 'bg-rose-950/70', 'border-rose-500/40', 'text-rose-200', 'bg-amber-950/70', 'border-amber-500/40', 'text-amber-200', 'bg-emerald-950/70', 'border-emerald-500/40', 'text-emerald-200');
+            
+            if (type === 'danger') {
+                banner.classList.add('bg-rose-950/70', 'border-rose-500/40', 'text-rose-200');
+            } else if (type === 'warning') {
+                banner.classList.add('bg-amber-950/70', 'border-amber-500/40', 'text-amber-200');
+            } else {
+                banner.classList.add('bg-emerald-950/70', 'border-emerald-500/40', 'text-emerald-200');
+            }
+
+            bannerTitle.textContent = title;
+            bannerMsg.textContent = message;
+        }
+
+        function dismissBanner() {
+            document.getElementById('system-banner').classList.add('hidden');
+        }
+
+        async function recordLog(durA = 0, durB = 0) {
+            const now = new Date().toLocaleTimeString('id-ID');
+            const entry = {
+                waktu: now,
+                sesi: state.sessionNum,
+                tds: state.isValid ? Math.round(state.tds) : 'INVALID',
+                ph: state.isValid ? state.ph.toFixed(1) : '-',
+                suhu: state.isValid ? state.temp.toFixed(1) : '-',
+                validitas: state.isValid ? 'VALID' : 'FAULT',
+                status_kontrol: state.controlState,
+                durasi_a: durA,
+                durasi_b: durB,
+                synced: false
+            };
+
+            if (state.isValid && tdsChart) {
+                tdsChart.data.labels.push(now);
+                tdsChart.data.datasets[0].data.push(Math.round(state.tds));
+                tdsChart.data.datasets[1].data.push(state.limitH);
+                tdsChart.data.datasets[2].data.push(state.limitL);
+
+                if (tdsChart.data.labels.length > 15) {
+                    tdsChart.data.labels.shift();
+                    tdsChart.data.datasets.forEach(ds => ds.data.shift());
+                }
+                tdsChart.update();
+            }
+
+            if (state.googleSheetsUrl) {
+                try {
+                    await fetch(state.googleSheetsUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(entry)
+                    });
+                    entry.synced = true;
+                } catch (err) {
+                    console.error('Gagal mengirim ke Google Sheets:', err);
+                }
+            }
+
+            state.logs.unshift(entry);
+            if (state.logs.length > 50) state.logs.pop();
+            renderLogTable();
+        }
+
+        function renderLogTable() {
+            const tbody = document.getElementById('log-table-body');
+            tbody.innerHTML = state.logs.map(row => `
+                <tr class="hover:bg-slate-800/40 transition">
+                    <td class="py-2.5 px-4 text-slate-400">${row.waktu}</td>
+                    <td class="py-2.5 px-4 text-slate-300">#0${row.sesi}</td>
+                    <td class="py-2.5 px-4 font-bold ${row.tds < state.limitL ? 'text-amber-400' : row.tds > state.limitH ? 'text-rose-400' : 'text-emerald-400'}">${row.tds}</td>
+                    <td class="py-2.5 px-4 text-cyan-300">${row.ph}</td>
+                    <td class="py-2.5 px-4 text-amber-300">${row.suhu}</td>
+                    <td class="py-2.5 px-4">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${row.validitas === 'VALID' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}">
+                            ${row.validitas}
+                        </span>
+                    </td>
+                    <td class="py-2.5 px-4 text-slate-200">${row.status_kontrol}</td>
+                    <td class="py-2.5 px-4 text-slate-400">${row.durasi_a}s / ${row.durasi_b}s</td>
+                    <td class="py-2.5 px-4">
+                        ${row.synced 
+                            ? '<span class="text-emerald-400 font-semibold">SYNCED_GSHEETS</span>' 
+                            : '<span class="text-slate-500">LOCAL_BUFFER</span>'}
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function simulateScenario(type) {
+            if (state.isDosingCycleRunning) {
+                showBanner('warning', 'PIPELINE BUSY', 'Siklus injeksi nutrisi A/B dan jeda pencampuran sedang dieksekusi.');
+                return;
+            }
+
+            if (type === 'high_tds') {
+                state.isValid = true;
+                state.tds = state.limitH + 60;
+                state.pumpA = false;
+                state.pumpB = false;
+                state.controlState = 'ALERT_TDS_HIGH';
+                document.getElementById('algo-step-badge').textContent = 'INTERLOCK: TDS > H';
+                document.getElementById('algo-description').textContent = `> TDS (${state.tds} ppm) > Limit H (${state.limitH} ppm). Pompa dosis dikunci OFF. Diperlukan pengenceran manual.`;
+                document.getElementById('algo-progress').style.width = '100%';
+                showBanner('danger', 'INTERLOCK: TDS MELEBIHI BATAS ATAS (H)', `Terbaca ${state.tds} ppm (> ${state.limitH} ppm). Seluruh pompa dosis dimatikan otomatis.`);
+                updateUI();
+                recordLog(0, 0);
+            } 
+            else if (type === 'sensor_error') {
+                state.isValid = false;
+                state.pumpA = false;
+                state.pumpB = false;
+                state.controlState = 'FAULT_SENSOR_ERR';
+                document.getElementById('algo-step-badge').textContent = 'FAILSAFE: INVALID';
+                document.getElementById('algo-description').textContent = '> Sinyal ADC TDS/1-Wire tidak valid. Fail-safe aktif: aktuator diputus.';
+                document.getElementById('algo-progress').style.width = '0%';
+                showBanner('danger', 'FAIL-SAFE: GANGGUAN PEMBACAAN SENSOR', 'Data sensor tidak valid. Pemberian nutrisi AB Mix dikunci hingga sinyal sensor kembali stabil.');
+                updateUI();
+                recordLog(0, 0);
+            } 
+            else if (type === 'low_tds') {
+                state.isValid = true;
+                state.tds = Math.max(420, state.limitL - 80);
+                runGradualDosingCycle();
+            }
+        }
+
+        function runGradualDosingCycle() {
+            state.isDosingCycleRunning = true;
+            const durA = parseFloat((state.doseVol / state.debitA).toFixed(1));
+            const durB = parseFloat((state.doseVol / state.debitB).toFixed(1));
+
+            state.controlState = 'VALIDASI_3X (< L)';
+            document.getElementById('algo-step-badge').textContent = 'STAGE 1/5: VALIDATE';
+            document.getElementById('algo-description').textContent = `> TDS (${Math.round(state.tds)} ppm) < Limit L (${state.limitL} ppm). Verifikasi 3 sampel valid berturut-turut...`;
+            document.getElementById('algo-progress').style.width = '20%';
+            updateUI();
+            recordLog(0, 0);
+
+            setTimeout(() => {
+                state.pumpA = true;
+                state.pumpB = false;
+                state.controlState = 'DOSING_STOK_A';
+                document.getElementById('algo-step-badge').textContent = 'STAGE 2/5: PUMP_A';
+                document.getElementById('algo-description').textContent = `> GPIO_26 HIGH (${durA}s): Injeksi ${state.doseVol} mL larutan stok A ke tangki kerja.`;
+                document.getElementById('algo-progress').style.width = '40%';
+                updateUI();
+            }, 1500);
+
+            setTimeout(() => {
+                state.pumpA = false;
+                state.controlState = 'MIXING_DELAY_1';
+                document.getElementById('algo-step-badge').textContent = 'STAGE 3/5: DELAY_1';
+                document.getElementById('algo-description').textContent = '> GPIO_26 LOW: Jeda pencampuran awal mencegah presipitasi stok pekat A & B.';
+                document.getElementById('algo-progress').style.width = '60%';
+                updateUI();
+            }, 3500);
+
+            setTimeout(() => {
+                state.pumpB = true;
+                state.controlState = 'DOSING_STOK_B';
+                document.getElementById('algo-step-badge').textContent = 'STAGE 4/5: PUMP_B';
+                document.getElementById('algo-description').textContent = `> GPIO_27 HIGH (${durB}s): Injeksi ${state.doseVol} mL larutan stok B sesuai kalibrasi.`;
+                document.getElementById('algo-progress').style.width = '80%';
+                updateUI();
+            }, 5500);
+
+            setTimeout(() => {
+                state.pumpB = false;
+                state.cumDose += (state.doseVol * 2);
+                state.tds += 95;
+                state.controlState = 'PEMANTAUAN';
+                state.isDosingCycleRunning = false;
+
+                document.getElementById('algo-step-badge').textContent = 'STAGE 5/5: COMPLETE';
+                document.getElementById('algo-description').textContent = `> Homogenisasi selesai. Re-read TDS: ${Math.round(state.tds)} ppm (Target ${state.limitL}–${state.limitH} ppm tercapai).`;
+                document.getElementById('algo-progress').style.width = '100%';
+                
+                showBanner('success', 'DOSING CYCLE COMPLETED', `Injeksi pasangan A (${durA}s) & B (${durB}s) selesai. Konsentrasi stabil di ${Math.round(state.tds)} ppm.`);
+                updateUI();
+                recordLog(durA, durB);
+            }, 8000);
+        }
+
+        function resetSystem() {
+            state.isValid = true;
+            state.pumpA = false;
+            state.pumpB = false;
+            state.isDosingCycleRunning = false;
+            state.tds = Math.round((state.limitL + state.limitH) / 2);
+            state.controlState = 'PEMANTAUAN';
+            state.sessionNum += 1;
+            document.getElementById('algo-step-badge').textContent = 'IDLE / MONITOR';
+            document.getElementById('algo-description').textContent = `> Sistem di-reset ke sesi #0${state.sessionNum}. Nilai TDS berada dalam rentang kerja.`;
+            document.getElementById('algo-progress').style.width = '0%';
+            dismissBanner();
+            updateUI();
+            recordLog(0, 0);
+        }
+
+        function applyParameters() {
+            const newL = parseInt(document.getElementById('input-limit-l').value) || 600;
+            const newH = parseInt(document.getElementById('input-limit-h').value) || 800;
+            if (newL >= newH) {
+                showBanner('warning', 'CONFIG ERROR', 'Parameter LIMIT_L harus lebih kecil daripada LIMIT_H.');
+                return;
+            }
+            state.limitL = newL;
+            state.limitH = newH;
+            state.doseVol = parseFloat(document.getElementById('input-dose-vol').value) || 5;
+            state.debitA = parseFloat(document.getElementById('input-debit-a').value) || 1.5;
+            state.debitB = parseFloat(document.getElementById('input-debit-b').value) || 1.4;
+
+            tdsChart.data.datasets[1].data = Array(tdsChart.data.labels.length).fill(state.limitH);
+            tdsChart.data.datasets[2].data = Array(tdsChart.data.labels.length).fill(state.limitL);
+            tdsChart.update();
+
+            updateUI();
+            showBanner('success', 'PARAMETERS UPDATED', `Threshold diset ke ${state.limitL}–${state.limitH} ppm | Dosis ${state.doseVol} mL/siklus.`);
+        }
+
+        function saveGoogleSheetsUrl() {
+            const url = document.getElementById('gsheets-url-input').value.trim();
+            state.googleSheetsUrl = url;
+            const badge = document.getElementById('gsheets-badge');
+            const text = document.getElementById('gsheets-status-text');
+
+            if (url) {
+                badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono-tech bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+                badge.querySelector('span').className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+                text.textContent = 'DB: GSHEETS_ONLINE';
+                closeModal('setupModal');
+                showBanner('success', 'DATABASE CONNECTED', 'Telemetri sensor dan log aktuator kini otomatis tersinkronisasi ke Google Sheets.');
+                recordLog(0, 0);
+            } else {
+                badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono-tech bg-amber-500/10 text-amber-400 border border-amber-500/30';
+                badge.querySelector('span').className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+                text.textContent = 'DB: LOCAL_CACHE';
+            }
+        }
+
+        async function syncFromGoogleSheets() {
+            if (!state.googleSheetsUrl) {
+                openModal('setupModal');
+                showBanner('warning', 'ENDPOINT NOT CONFIGURED', 'Masukkan URL Web App Google Apps Script terlebih dahulu.');
+                return;
+            }
+            try {
+                const res = await fetch(state.googleSheetsUrl);
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    state.logs = data.map(item => ({ ...item, synced: true }));
+                    renderLogTable();
+                    showBanner('success', 'SYNC COMPLETE', `Berhasil menarik ${data.length} record terbaru dari Google Sheets.`);
+                }
+            } catch (e) {
+                showBanner('danger', 'FETCH FAILED', 'Pastikan izin akses Web App Google Apps Script diatur ke "Anyone".');
+            }
+        }
+
+        function exportCSV() {
+            const headers = ['Waktu', 'Sesi', 'TDS_ppm', 'pH', 'Suhu_C', 'Validitas', 'Status_Kontrol', 'Durasi_Pompa_A_dtk', 'Durasi_Pompa_B_dtk'];
+            const rows = state.logs.map(l => [l.waktu, l.sesi, l.tds, l.ph, l.suhu, l.validitas, l.status_kontrol, l.durasi_a, l.durasi_b]);
+            const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `SCADA_Log_Hidroponik_Syuhada_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function copyCode(elementId) {
+            const text = document.getElementById(elementId).innerText;
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showBanner('success', 'COPIED TO CLIPBOARD', 'Kode Google Apps Script siap ditempel ke editor Apps Script.');
+        }
+
+        setInterval(() => {
+            if (!state.isDosingCycleRunning && state.isValid && state.controlState === 'PEMANTAUAN') {
+                state.tds += (Math.random() - 0.52) * 4;
+                state.ph = Math.min(6.8, Math.max(5.6, state.ph + (Math.random() - 0.5) * 0.05));
+                state.temp = Math.min(28.0, Math.max(23.5, state.temp + (Math.random() - 0.5) * 0.1));
+                updateUI();
+            }
+        }, 6000);
+
+        window.onload = function() {
+            initChart();
+            updateUI();
+            recordLog(0, 0);
+        };
+    </script>
+</body>
+</html>
