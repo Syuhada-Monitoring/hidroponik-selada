@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HIDROPONIK AB Mix - Sistem Komputer IoT</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Inter & JetBrains Mono untuk Nuansa Engineering/Telemetry -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #070b14;
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+                linear-gradient(to right, rgba(30, 41, 59, 0.25) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(30, 41, 59, 0.25) 1px, transparent 1px);
+            background-size: 100% 100%, 28px 28px, 28px 28px;
+        }
+        .font-mono-tech {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .tech-card {
+            background: rgba(15, 23, 42, 0.78);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(51, 65, 85, 0.65);
+            box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+        }
+        .tech-card:hover {
+            border-color: rgba(16, 185, 129, 0.35);
+        }
+        /* Desain Jam Bulat Elegan */
+        .elegant-clock-ring {
+            background: radial-gradient(circle at 30% 30%, rgba(30, 41, 59, 0.9), rgba(7, 11, 20, 0.98));
+            box-shadow: 
+                0 0 25px rgba(16, 185, 129, 0.15),
+                inset 0 2px 6px rgba(255, 255, 255, 0.08),
+                inset 0 -3px 8px rgba(0, 0, 0, 0.6);
+        }
+        /* Animasi pulse LED aktuator */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.9; }
+            100% { transform: scale(1.6); opacity: 0; }
+        }
+        .pulse-active::before {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: 9999px;
+            border: 2px solid currentColor;
+            animation: pulse-ring 1.4s cubic-bezier(0.24, 0, 0.38, 1) infinite;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="text-slate-200 antialiased min-h-screen flex flex-col selection:bg-emerald-500/30 selection:text-emerald-200">
+
+    <!-- Top Navigation Bar (SCADA Header) -->
+    <header class="bg-slate-950/85 backdrop-blur-md border-b border-slate-800/80 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3.5">
+                <div class="relative bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 p-2 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                    <i data-lucide="cpu" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-bold text-slate-100 text-sm sm:text-base tracking-tight">
+                            HIDROPONIK <span class="text-emerald-400 font-mono-tech text-xs sm:text-sm">[ESP32-NODE-01]</span>
+                        </h1>
+                        <span class="hidden md:inline-block px-2 py-0.5 text-[10px] font-mono-tech uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded">
+                            v2.6-THESIS
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 hidden sm:block font-mono-tech">
+                        SYS.KOMP UNIV. ROYAL // SYUHADA ALHAFIZ (23210058)
+                    </p>
+                </div>
+            </div>
+
+            <!-- Status Koneksi & Setup -->
+            <div class="flex items-center gap-2.5 sm:gap-3">
+                <div id="gsheets-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono-tech bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                    <span id="gsheets-status-text">DB: LOCAL_CACHE</span>
+                </div>
+                <button onclick="openModal('setupModal')" class="flex items-center gap-2 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 text-xs font-mono-tech font-medium px-3.5 py-2 rounded-lg transition shadow-[0_0_15px_rgba(16,185,129,0.12)]">
+                    <i data-lucide="terminal" class="w-4 h-4"></i>
+                    <span>CONFIG G-SHEETS</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+        <!-- Banner Peringatan Sistem / Diagnostic Alert -->
+        <div id="system-banner" class="hidden rounded-xl p-4 border backdrop-blur-md flex items-start justify-between gap-4 transition-all">
+            <div class="flex items-start gap-3">
+                <i id="banner-icon" data-lucide="alert-triangle" class="w-5 h-5 mt-0.5 shrink-0"></i>
+                <div>
+                    <h3 id="banner-title" class="font-mono-tech font-bold text-xs uppercase tracking-wider">SYSTEM DIAGNOSTIC</h3>
+                    <p id="banner-message" class="text-xs sm:text-sm mt-1 opacity-90"></p>
+                </div>
+            </div>
+            <button onclick="dismissBanner()" class="text-xs font-mono-tech uppercase px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 transition">
+                [ACK]
+            </button>
+        </div>
+
+        <!-- Baris Atas: Jam Bulat Elegan Real-Time + Status Ringkas Sistem -->
+        <div class="tech-card rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-5">
+            <div class="flex items-center gap-5">
+                <!-- Jam Analog Bulat Elegan SVG -->
+                <div class="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full elegant-clock-ring border border-emerald-500/40 flex items-center justify-center shrink-0">
+                    <!-- Ring Aksen Luar -->
+                    <div class="absolute inset-1.5 rounded-full border border-slate-700/70 pointer-events-none"></div>
+                    <svg id="analog-clock" viewBox="0 0 120 120" class="w-full h-full">
+                        <!-- Penanda 12 Titik Jam -->
+                        <g id="clock-ticks"></g>
+                        <!-- Jarum Jam -->
+                        <line id="hour-hand" x1="60" y1="60" x2="60" y2="34" stroke="#f8fafc" stroke-width="3.2" stroke-linecap="round" />
+                        <!-- Jarum Menit -->
+                        <line id="minute-hand" x1="60" y1="60" x2="60" y2="22" stroke="#34d399" stroke-width="2.2" stroke-linecap="round" />
+                        <!-- Jarum Detik -->
+                        <line id="second-hand" x1="60" y1="68" x2="60" y2="18" stroke="#22d3ee" stroke-width="1.3" stroke-linecap="round" />
+                        <!-- Poros Tengah -->
+                        <circle cx="60" cy="60" r="4" fill="#10b981" stroke="#0f172a" stroke-width="1.5" />
+                    </svg>
+                </div>
+
+                <!-- Informasi Waktu & Tanggal Real-Time -->
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-[11px] font-mono-tech uppercase tracking-widest text-emerald-400 font-semibold">SYSTEM REAL-TIME CLOCK (WIB)</span>
+                    </div>
+                    <div id="digital-clock-time" class="text-2xl sm:text-3xl font-bold font-mono-tech text-slate-100 tracking-wider">
+                        00:00:00
+                    </div>
+                    <div id="digital-clock-date" class="text-xs sm:text-sm font-mono-tech text-slate-400">
+                        Memuat tanggal...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Singkat Node & Lokasi -->
+            <div class="w-full md:w-auto grid grid-cols-2 sm:flex items-center gap-3 font-mono-tech text-xs border-t md:border-t-0 pt-3 md:pt-0 border-slate-800/80">
+                <div class="bg-slate-950/70 border border-slate-800 px-3.5 py-2.5 rounded-xl">
+                    <span class="block text-[10px] text-slate-500">PLANT / TARGET</span>
+                    <span class="text-emerald-300 font-semibold">SELADA (600–800 PPM)</span>
+                </div>
+                <div class="bg-slate-950/70 border border-slate-800 px-3.5 py-2.5 rounded-xl">
+                    <span class="block text-[10px] text-slate-500">TELEMETRY INTERVAL</span>
+                    <span class="text-cyan-300 font-semibold">REAL-TIME SYNC</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid Kartu Telemetri Sensor (TDS, pH, Suhu, FSM State) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            <!-- Kartu 1: Sensor TDS (Primary Control Variable) -->
+            <div class="tech-card rounded-2xl p-5 relative overflow-hidden transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-mono-tech uppercase tracking-wider text-slate-400">CH0 // TDS SENSOR</span>
+                    <div class="p-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline gap-2 my-1">
+                    <span id="val-tds" class="text-4xl font-bold font-mono-tech text-emerald-400 tracking-tight drop-shadow-[0_0_8px_rgba(16,185,129,0.3)]">685</span>
+                    <span class="text-xs font-mono-tech text-slate-400">PPM (0.5)</span>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-xs">
+                    <span class="text-slate-400 font-mono-tech text-[11px]">SET: <strong id="display-range" class="text-slate-200">600-800</strong></span>
+                    <span id="badge-tds-state" class="px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">IN_RANGE</span>
+                </div>
+                <!-- Progress bar visual rentang TDS -->
+                <div class="w-full bg-slate-800/90 h-1.5 rounded-full mt-3 overflow-hidden border border-slate-700/50">
+                    <div id="bar-tds" class="bg-emerald-400 h-full transition-all duration-500 shadow-[0_0_8px_#34d399]" style="width: 68%"></div>
+                </div>
+            </div>
+
+            <!-- Kartu 2: Sensor pH (Monitoring) -->
+            <div class="tech-card rounded-2xl p-5 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-mono-tech uppercase tracking-wider text-slate-400">CH1 // PH ELECTRODE</span>
+                    <div class="p-1.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-lg">
+                        <i data-lucide="droplets" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline gap-2 my-1">
+                    <span id="val-ph" class="text-4xl font-bold font-mono-tech text-cyan-400 tracking-tight drop-shadow-[0_0_8px_rgba(34,211,238,0.25)]">6.2</span>
+                    <span class="text-xs font-mono-tech text-slate-400">pH</span>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-xs">
+                    <span class="text-slate-400 font-mono-tech text-[11px]">MODE: <strong class="text-slate-200">MONITOR</strong></span>
+                    <span id="badge-ph-state" class="px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">OPTIMAL</span>
+                </div>
+                <p class="text-[10px] font-mono-tech text-slate-500 mt-3">// MANUAL_PH_CORRECTION_ONLY</p>
+            </div>
+
+            <!-- Kartu 3: Sensor Suhu DS18B20 -->
+            <div class="tech-card rounded-2xl p-5 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-mono-tech uppercase tracking-wider text-slate-400">1-WIRE // DS18B20</span>
+                    <div class="p-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg">
+                        <i data-lucide="thermometer" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="flex items-baseline gap-2 my-1">
+                    <span id="val-temp" class="text-4xl font-bold font-mono-tech text-amber-400 tracking-tight drop-shadow-[0_0_8px_rgba(251,191,36,0.25)]">25.4</span>
+                    <span class="text-xs font-mono-tech text-slate-400">°C</span>
+                </div>
+                <div class="mt-3 flex items-center justify-between text-xs">
+                    <span class="text-slate-400 font-mono-tech text-[11px]">ATC COMP:</span>
+                    <span class="px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">ENABLED</span>
+                </div>
+                <p class="text-[10px] font-mono-tech text-slate-500 mt-3">// TANK_VOL: 10.0L • LACTUCA_SATIVA</p>
+            </div>
+
+            <!-- Kartu 4: Finite State Machine (FSM) ESP32 -->
+            <div class="tech-card rounded-2xl p-5 transition-all">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-mono-tech uppercase tracking-wider text-slate-400">MCU // FSM STATE</span>
+                    <div class="p-1.5 bg-purple-500/10 border border-purple-500/30 text-purple-400 rounded-lg">
+                        <i data-lucide="git-commit" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <div class="my-1.5">
+                    <span id="val-control-state" class="text-base sm:text-lg font-bold font-mono-tech text-purple-300 tracking-tight">PEMANTAUAN</span>
+                </div>
+                <div class="mt-3 space-y-1.5 text-[11px] font-mono-tech">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">CUM_DOSE:</span>
+                        <span class="text-slate-200"><span id="val-cum-dose" class="text-emerald-400 font-bold">0</span> / <span id="val-max-dose">100</span> mL</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">LAST_SYNC:</span>
+                        <span id="val-last-update" class="text-slate-300">--:--:--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bagian Tengah: Oscilloscope / Telemetry Chart & Hardware Actuator Panel -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Kolom Kiri (2/3): Real-Time Telemetry Graph -->
+            <div class="lg:col-span-2 tech-card rounded-2xl p-5 flex flex-col">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-800">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                            <h2 class="font-bold text-slate-100 text-sm sm:text-base tracking-tight">REAL-TIME TELEMETRY & STEP RESPONSE</h2>
+                        </div>
+                        <p class="text-xs text-slate-400 font-mono-tech mt-0.5">Grafik respons TDS (ppm) terhadap injeksi dosis bertahap AB Mix</p>
+                    </div>
+                    <div class="flex items-center gap-3 text-[11px] font-mono-tech">
+                        <span class="flex items-center gap-1.5 text-emerald-400"><span class="w-2.5 h-0.5 bg-emerald-400"></span> TDS</span>
+                        <span class="flex items-center gap-1.5 text-rose-400"><span class="w-2.5 h-0.5 bg-rose-400 border-dashed"></span> HIGH (H)</span>
+                        <span class="flex items-center gap-1.5 text-amber-400"><span class="w-2.5 h-0.5 bg-amber-400 border-dashed"></span> LOW (L)</span>
+                    </div>
+                </div>
+                <div class="relative flex-1 min-h-[265px] w-full">
+                    <canvas id="tdsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Kolom Kanan (1/3): Relay/Driver Actuator Control & Algorithm Execution -->
+            <div class="tech-card rounded-2xl p-5 space-y-5 flex flex-col justify-between">
+                <div>
+                    <div class="pb-3 border-b border-slate-800 mb-4">
+                        <h2 class="font-bold text-slate-100 text-sm sm:text-base tracking-tight">ACTUATOR DRIVER & LOGIC</h2>
+                        <p class="text-xs text-slate-400 font-mono-tech mt-0.5">Dual-channel peristaltic dosing & mixing</p>
+                    </div>
+
+                    <!-- Indikator Aktuator -->
+                    <div class="space-y-2.5">
+                        <!-- Pompa Stok A -->
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div id="led-pump-a" class="relative w-3 h-3 rounded-full bg-slate-600 text-emerald-400"></div>
+                                <div>
+                                    <p class="text-xs font-bold font-mono-tech text-slate-200">GPIO_26 // POMPA STOK A</p>
+                                    <p class="text-[11px] font-mono-tech text-slate-400">q=<span id="cal-debit-a" class="text-slate-300">1.5</span>mL/s • t=<span id="cal-dur-a" class="text-emerald-400">3.3</span>s</p>
+                                </div>
+                            </div>
+                            <span id="status-pump-a" class="text-[11px] font-mono-tech font-bold px-2.5 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700">OFF</span>
+                        </div>
+
+                        <!-- Pompa Stok B -->
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div id="led-pump-b" class="relative w-3 h-3 rounded-full bg-slate-600 text-cyan-400"></div>
+                                <div>
+                                    <p class="text-xs font-bold font-mono-tech text-slate-200">GPIO_27 // POMPA STOK B</p>
+                                    <p class="text-[11px] font-mono-tech text-slate-400">q=<span id="cal-debit-b" class="text-slate-300">1.4</span>mL/s • t=<span id="cal-dur-b" class="text-cyan-400">3.6</span>s</p>
+                                </div>
+                            </div>
+                            <span id="status-pump-b" class="text-[11px] font-mono-tech font-bold px-2.5 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700">OFF</span>
+                        </div>
+
+                        <!-- Pompa Sirkulasi -->
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div class="relative w-3 h-3 rounded-full bg-emerald-400 text-emerald-400 pulse-active"></div>
+                                <div>
+                                    <p class="text-xs font-bold font-mono-tech text-slate-200">RELAY_01 // SIRKULASI</p>
+                                    <p class="text-[11px] font-mono-tech text-slate-400">Continuous Tank Mixing</p>
+                                </div>
+                            </div>
+                            <span class="text-[11px] font-mono-tech font-bold px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">ACTIVE</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Terminal Eksekusi Algoritma Bab 3.9 -->
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs space-y-2.5 shadow-inner">
+                    <div class="flex items-center justify-between border-b border-slate-800/80 pb-1.5">
+                        <span class="font-mono-tech text-[10px] uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                            <i data-lucide="terminal" class="w-3.5 h-3.5 text-emerald-400"></i> CONTROL_PIPELINE
+                        </span>
+                        <span id="algo-step-badge" class="text-emerald-400 font-mono-tech text-[10px] font-bold">IDLE / MONITOR</span>
+                    </div>
+                    <p id="algo-description" class="text-slate-300 font-mono-tech text-[11px] leading-relaxed">
+                        > TDS dalam rentang kerja (600–800 ppm). Aktuator dosis standby.
+                    </p>
+                    <div class="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-800">
+                        <div id="algo-progress" class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Kalibrasi & Fault Injection / Scenario Simulator (Bab 3.11) -->
+        <div class="tech-card rounded-2xl p-5">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                <div>
+                    <h2 class="font-bold text-slate-100 text-sm sm:text-base tracking-tight">EXPERIMENTAL TESTBENCH & CALIBRATION PARAMETERS</h2>
+                    <p class="text-xs text-slate-400 font-mono-tech mt-0.5">Uji skenario kendali & fault-injection sesuai rancangan pengujian Bab 3.11</p>
+                </div>
+                <div class="flex flex-wrap gap-2 font-mono-tech">
+                    <button onclick="simulateScenario('low_tds')" class="px-3 py-2 rounded-lg text-xs font-semibold bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 transition flex items-center gap-1.5">
+                        <i data-lucide="arrow-down-circle" class="w-3.5 h-3.5"></i>
+                        INJECT TDS &lt; L
+                    </button>
+                    <button onclick="simulateScenario('high_tds')" class="px-3 py-2 rounded-lg text-xs font-semibold bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition flex items-center gap-1.5">
+                        <i data-lucide="alert-octagon" class="w-3.5 h-3.5"></i>
+                        INJECT TDS &gt; H
+                    </button>
+                    <button onclick="simulateScenario('sensor_error')" class="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 transition flex items-center gap-1.5">
+                        <i data-lucide="zap-off" class="w-3.5 h-3.5"></i>
+                        FAULT: SENSOR_ERR
+                    </button>
+                    <button onclick="resetSystem()" class="px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center gap-1.5 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                        SYS_RESET
+                    </button>
+                </div>
+            </div>
+
+            <!-- Form Pengaturan Ambang & Kalibrasi Pompa -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 font-mono-tech">
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">LIMIT_L (ppm)</label>
+                    <input type="number" id="input-limit-l" value="600" class="w-full px-3 py-2 text-sm bg-slate-950/80 border border-slate-700 text-slate-100 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">LIMIT_H (ppm)</label>
+                    <input type="number" id="input-limit-h" value="800" class="w-full px-3 py-2 text-sm bg-slate-950/80 border border-slate-700 text-slate-100 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">DOSE_VOL (mL)</label>
+                    <input type="number" id="input-dose-vol" value="5" class="w-full px-3 py-2 text-sm bg-slate-950/80 border border-slate-700 text-slate-100 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">DEBIT_A (mL/s)</label>
+                    <input type="number" step="0.1" id="input-debit-a" value="1.5" class="w-full px-3 py-2 text-sm bg-slate-950/80 border border-slate-700 text-slate-100 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">DEBIT_B (mL/s)</label>
+                    <input type="number" step="0.1" id="input-debit-b" value="1.4" class="w-full px-3 py-2 text-sm bg-slate-950/80 border border-slate-700 text-slate-100 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:border-emerald-400 focus:outline-none">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="applyParameters()" class="w-full py-2 px-4 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 text-xs font-bold rounded-lg transition">
+                        APPLY_CONFIG
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabel Data Logger & Sinkronisasi Google Sheets -->
+        <div class="tech-card rounded-2xl overflow-hidden">
+            <div class="p-5 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="font-bold text-slate-100 text-sm sm:text-base tracking-tight">EXPERIMENT DATA LOGGER & GOOGLE SHEETS SYNC</h2>
+                    <p class="text-xs text-slate-400 font-mono-tech mt-0.5">Struktur log serial/cloud sesuai Bab 3.7 untuk kalkulasi MAE, Bias & Kestabilan</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 font-mono-tech">
+                    <button onclick="syncFromGoogleSheets()" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition flex items-center gap-1.5">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                        FETCH_SHEETS
+                    </button>
+                    <button onclick="exportCSV()" class="px-3.5 py-2 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-1.5">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+                        EXPORT_CSV
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse font-mono-tech">
+                    <thead>
+                        <tr class="bg-slate-950/90 border-b border-slate-800 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            <th class="py-3 px-4">TIMESTAMP</th>
+                            <th class="py-3 px-4">SESSION</th>
+                            <th class="py-3 px-4">TDS (PPM)</th>
+                            <th class="py-3 px-4">PH</th>
+                            <th class="py-3 px-4">TEMP (°C)</th>
+                            <th class="py-3 px-4">STATUS</th>
+                            <th class="py-3 px-4">FSM_STATE</th>
+                            <th class="py-3 px-4">PUMP_A/B (s)</th>
+                            <th class="py-3 px-4">DB_SYNC</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-table-body" class="divide-y divide-slate-800/60 text-xs text-slate-300">
+                        <!-- Baris log diisi via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer Akademik -->
+    <footer class="bg-slate-950/90 border-t border-slate-800/80 py-4 mt-8 font-mono-tech">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-2">
+            <p>SYS_CONTROL_AB_MIX // <strong class="text-slate-300">SYUHADA ALHAFIZ (23210058)</strong></p>
+            <p>PRODI SISTEM KOMPUTER • UNIVERSITAS ROYAL • 2026</p>
+        </div>
+    </footer>
+
+    <!-- Modal Setup Google Sheets & Kode Apps Script -->
+    <div id="setupModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-200">
+            <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-xl">
+                        <i data-lucide="database" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-100 text-sm sm:text-base font-mono-tech">GOOGLE_SHEETS_API // INTEGRATION</h3>
+                        <p class="text-xs text-slate-400">Konfigurasi endpoint database spreadsheet untuk web & ESP32</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('setupModal')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="p-5 overflow-y-auto space-y-5 text-sm">
+                <!-- Input URL Web App Google Apps Script -->
+                <div class="bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-4 space-y-3">
+                    <label class="block font-mono-tech font-semibold text-emerald-400 text-xs uppercase tracking-wider">
+1. ENDPOINT URL GOOGLE APPS SCRIPT WEB APP
+                    </label>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input type="url" id="gsheets-url-input" placeholder="https://script.google.com/macros/s/AKfycbx.../exec" 
+                            class="flex-1 px-3.5 py-2 text-xs font-mono-tech bg-slate-950 border border-slate-700 text-slate-100 rounded-lg focus:ring-1 focus:ring-emerald-400 focus:outline-none">
+                        <button onclick="saveGoogleSheetsUrl()" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-mono-tech text-xs font-bold rounded-lg transition shrink-0">
+                            CONNECT_DB
+                        </button>
+                    </div>
+                    <p class="text-xs text-slate-400">
+                        Kosongkan jika ingin menjalankan mode pengujian lokal tanpa koneksi internet.
+                    </p>
+                </div>
+
+                <!-- Langkah-langkah Setup Google Sheets -->
+                <div class="space-y-2">
+                    <h4 class="font-bold text-slate-100 text-xs font-mono-tech uppercase tracking-wider text-cyan-400">2. PROSEDUR DEPLOYMENT SPREADSHEET:</h4>
+                    <ol class="list-decimal list-inside text-xs text-slate-300 space-y-1.5 leading-relaxed">
+                        <li>Buat <strong>Google Sheets</strong> baru (misal: <code class="text-emerald-400">DB_Hidroponik_Syuhada</code>).</li>
+                        <li>Isi baris ke-1 (Kolom A1 s/d I1) dengan header: <br>
+                            <code class="bg-slate-950 border border-slate-800 px-2 py-1 rounded text-cyan-300 block mt-1 font-mono-tech text-[11px]">Waktu | Sesi | TDS | pH | Suhu | Validitas | Status_Kontrol | Durasi_Pompa_A | Durasi_Pompa_B</code>
+                        </li>
+                        <li>Buka <strong>Ekstensi (Extensions) &rarr; Apps Script</strong>, lalu tempel kode berikut:</li>
+                    </ol>
+                </div>
+
+                <!-- Kode Google Apps Script -->
+                <div class="relative">
+                    <div class="flex items-center justify-between bg-slate-950 border border-slate-800 text-slate-400 px-3.5 py-2 rounded-t-xl text-xs font-mono-tech">
+                        <span>Code.gs</span>
+                        <button onclick="copyCode('apps-script-code')" class="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1.5">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i> COPY_SCRIPT
+                        </button>
+                    </div>
+                    <pre id="apps-script-code" class="bg-slate-950/90 border-x border-b border-slate-800 text-emerald-300 p-3.5 rounded-b-xl text-[11px] font-mono-tech overflow-x-auto leading-relaxed">function doPost(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = JSON.parse(e.postData.contents);
+  sheet.appendRow([
+    data.waktu || new Date().toLocaleString("id-ID"),
+    data.sesi || 1,
+    data.tds,
+    data.ph,
+    data.suhu,
+    data.validitas || "VALID",
+    data.status_kontrol,
+    data.durasi_a || 0,
+    data.durasi_b || 0
+  ]);
+  return ContentService.createTextOutput(JSON.stringify({"status": "success"}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doGet(e) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var rows = sheet.getDataRange().getValues();
+  var result = [];
+  for (var i = 1; i < rows.length; i++) {
+    result.push({
+      waktu: rows[i][0], sesi: rows[i][1], tds: rows[i][2],
+      ph: rows[i][3], suhu: rows[i][4], validitas: rows[i][5],
+      status_kontrol: rows[i][6], durasi_a: rows[i][7], durasi_b: rows[i][8]
+    });
+  }
+  return ContentService.createTextOutput(JSON.stringify(result.slice(-30).reverse()))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+                </div>
+
+                <div class="text-xs text-slate-400">
+                    <p><strong class="text-slate-200">3. Deploy:</strong> Klik <strong>Deploy &rarr; New deployment &rarr; Web app</strong> &rarr; Execute as: <strong>Me</strong> &rarr; Who has access: <strong>Anyone</strong> &rarr; Salin URL Web App ke form di atas.</p>
+                </div>
+            </div>
+
+            <div class="p-4 border-t border-slate-800 bg-slate-950/50 flex justify-end">
+                <button onclick="closeModal('setupModal')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono-tech text-xs font-semibold rounded-lg transition">
+                    CLOSE_MODAL
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Logika Sistem & Simulasi Algoritma Skripsi -->
+    <script>
+        lucide.createIcons();
+
+        // Inisialisasi Penanda 12 Titik pada Jam Bulat Analog
+        function initClockTicks() {
+            const ticksGroup = document.getElementById('clock-ticks');
+            if (!ticksGroup) return;
+            for (let i = 0; i < 12; i++) {
+                const angle = i * 30;
+                const isQuarter = i % 3 === 0;
+                const y1 = isQuarter ? 9 : 11;
+                const y2 = 15;
+                const stroke = isQuarter ? '#34d399' : '#64748b';
+                const width = isQuarter ? '2' : '1.2';
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', '60');
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', '60');
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', stroke);
+                line.setAttribute('stroke-width', width);
+                line.setAttribute('stroke-linecap', 'round');
+                line.setAttribute('transform', `rotate(${angle} 60 60)`);
+                ticksGroup.appendChild(line);
+            }
+        }
+
+        // Pembaruan Jam Analog & Digital Real-Time Setiap Detik
+        function updateRealTimeClock() {
+            const now = new Date();
+            const seconds = now.getSeconds();
+            const minutes = now.getMinutes();
+            const hours = now.getHours();
+
+            // Sudut rotasi jarum jam analog
+            const secDeg = seconds * 6;
+            const minDeg = minutes * 6 + seconds * 0.1;
+            const hourDeg = (hours % 12) * 30 + minutes * 0.5;
+
+            const hourHand = document.getElementById('hour-hand');
+            const minuteHand = document.getElementById('minute-hand');
+            const secondHand = document.getElementById('second-hand');
+
+            if (hourHand) hourHand.setAttribute('transform', `rotate(${hourDeg} 60 60)`);
+            if (minuteHand) minuteHand.setAttribute('transform', `rotate(${minDeg} 60 60)`);
+            if (secondHand) secondHand.setAttribute('transform', `rotate(${secDeg} 60 60)`);
+
+            // Tampilan Digital & Tanggal Indonesia
+            const pad = (n) => String(n).padStart(2, '0');
+            const timeEl = document.getElementById('digital-clock-time');
+            const dateEl = document.getElementById('digital-clock-date');
+
+            if (timeEl) {
+                timeEl.textContent = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+            }
+            if (dateEl) {
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                dateEl.textContent = now.toLocaleDateString('id-ID', options);
+            }
+        }
+
+        let state = {
+            tds: 685,
+            ph: 6.2,
+            temp: 25.4,
+            limitL: 600,
+            limitH: 800,
+            doseVol: 5,
+            debitA: 1.5,
+            debitB: 1.4,
+            cumDose: 0,
+            maxCumDose: 100,
+            sessionNum: 1,
+            isValid: true,
+            controlState: 'PEMANTAUAN',
+            pumpA: false,
+            pumpB: false,
+            isDosingCycleRunning: false,
+            googleSheetsUrl: '',
+            logs: []
+        };
+
+        let tdsChart;
+        function initChart() {
+            const ctx = document.getElementById('tdsChart').getContext('2d');
+            const initialLabels = ['-50s', '-40s', '-30s', '-20s', '-10s', 'NOW'];
+            const initialData = [678, 680, 682, 684, 683, 685];
+
+            tdsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: initialLabels,
+                    datasets: [
+                        {
+                            label: 'TDS (ppm)',
+                            data: initialData,
+                            borderColor: '#34d399',
+                            backgroundColor: 'rgba(52, 211, 153, 0.12)',
+                            borderWidth: 2,
+                            tension: 0.25,
+                            fill: true,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#070b14',
+                            pointBorderColor: '#34d399',
+                            pointBorderWidth: 2
+                        },
+                        {
+                            label: 'Batas Atas (H)',
+                            data: Array(6).fill(state.limitH),
+                            borderColor: '#fb7185',
+                            borderWidth: 1.5,
+                            borderDash: [6, 4],
+                            pointRadius: 0,
+                            fill: false
+                        },
+                        {
+                            label: 'Batas Bawah (L)',
+                            data: Array(6).fill(state.limitL),
+                            borderColor: '#fbbf24',
+                            borderWidth: 1.5,
+                            borderDash: [6, 4],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            min: 400,
+                            max: 1000,
+                            grid: { color: 'rgba(51, 65, 85, 0.35)' },
+                            ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }
+                        },
+                        x: {
+                            grid: { color: 'rgba(51, 65, 85, 0.2)' },
+                            ticks: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateUI() {
+            document.getElementById('val-tds').textContent = state.isValid ? Math.round(state.tds) : 'ERR';
+            document.getElementById('val-ph').textContent = state.isValid ? state.ph.toFixed(1) : '--';
+            document.getElementById('val-temp').textContent = state.isValid ? state.temp.toFixed(1) : '--';
+            document.getElementById('display-range').textContent = `${state.limitL}-${state.limitH}`;
+            document.getElementById('val-cum-dose').textContent = state.cumDose;
+            document.getElementById('val-max-dose').textContent = state.maxCumDose;
+            document.getElementById('val-control-state').textContent = state.controlState;
+            document.getElementById('val-last-update').textContent = new Date().toLocaleTimeString('id-ID');
+
+            const durA = (state.doseVol
