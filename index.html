@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SCADA HydroControl AB Mix - Sistem Komputer IoT</title>
+    <title>HIDROPONIK AB Mix - Sistem Komputer IoT</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Inter & JetBrains Mono untuk Nuansa Engineering/Telemetry -->
@@ -33,6 +33,14 @@
         }
         .tech-card:hover {
             border-color: rgba(16, 185, 129, 0.35);
+        }
+        /* Desain Jam Bulat Elegan */
+        .elegant-clock-ring {
+            background: radial-gradient(circle at 30% 30%, rgba(30, 41, 59, 0.9), rgba(7, 11, 20, 0.98));
+            box-shadow: 
+                0 0 25px rgba(16, 185, 129, 0.15),
+                inset 0 2px 6px rgba(255, 255, 255, 0.08),
+                inset 0 -3px 8px rgba(0, 0, 0, 0.6);
         }
         /* Animasi pulse LED aktuator */
         @keyframes pulse-ring {
@@ -66,7 +74,7 @@
                 <div>
                     <div class="flex items-center gap-2">
                         <h1 class="font-bold text-slate-100 text-sm sm:text-base tracking-tight">
-                            HYDRO-SCADA <span class="text-emerald-400 font-mono-tech text-xs sm:text-sm">[ESP32-NODE-01]</span>
+                            HIDROPONIK <span class="text-emerald-400 font-mono-tech text-xs sm:text-sm">[ESP32-NODE-01]</span>
                         </h1>
                         <span class="hidden md:inline-block px-2 py-0.5 text-[10px] font-mono-tech uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded">
                             v2.6-THESIS
@@ -107,6 +115,55 @@
             <button onclick="dismissBanner()" class="text-xs font-mono-tech uppercase px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 transition">
                 [ACK]
             </button>
+        </div>
+
+        <!-- Baris Atas: Jam Bulat Elegan Real-Time + Status Ringkas Sistem -->
+        <div class="tech-card rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-5">
+            <div class="flex items-center gap-5">
+                <!-- Jam Analog Bulat Elegan SVG -->
+                <div class="relative w-24 h-24 sm:w-28 sm:h-28 rounded-full elegant-clock-ring border border-emerald-500/40 flex items-center justify-center shrink-0">
+                    <!-- Ring Aksen Luar -->
+                    <div class="absolute inset-1.5 rounded-full border border-slate-700/70 pointer-events-none"></div>
+                    <svg id="analog-clock" viewBox="0 0 120 120" class="w-full h-full">
+                        <!-- Penanda 12 Titik Jam -->
+                        <g id="clock-ticks"></g>
+                        <!-- Jarum Jam -->
+                        <line id="hour-hand" x1="60" y1="60" x2="60" y2="34" stroke="#f8fafc" stroke-width="3.2" stroke-linecap="round" />
+                        <!-- Jarum Menit -->
+                        <line id="minute-hand" x1="60" y1="60" x2="60" y2="22" stroke="#34d399" stroke-width="2.2" stroke-linecap="round" />
+                        <!-- Jarum Detik -->
+                        <line id="second-hand" x1="60" y1="68" x2="60" y2="18" stroke="#22d3ee" stroke-width="1.3" stroke-linecap="round" />
+                        <!-- Poros Tengah -->
+                        <circle cx="60" cy="60" r="4" fill="#10b981" stroke="#0f172a" stroke-width="1.5" />
+                    </svg>
+                </div>
+
+                <!-- Informasi Waktu & Tanggal Real-Time -->
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span class="text-[11px] font-mono-tech uppercase tracking-widest text-emerald-400 font-semibold">SYSTEM REAL-TIME CLOCK (WIB)</span>
+                    </div>
+                    <div id="digital-clock-time" class="text-2xl sm:text-3xl font-bold font-mono-tech text-slate-100 tracking-wider">
+                        00:00:00
+                    </div>
+                    <div id="digital-clock-date" class="text-xs sm:text-sm font-mono-tech text-slate-400">
+                        Memuat tanggal...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Singkat Node & Lokasi -->
+            <div class="w-full md:w-auto grid grid-cols-2 sm:flex items-center gap-3 font-mono-tech text-xs border-t md:border-t-0 pt-3 md:pt-0 border-slate-800/80">
+                <div class="bg-slate-950/70 border border-slate-800 px-3.5 py-2.5 rounded-xl">
+                    <span class="block text-[10px] text-slate-500">PLANT / TARGET</span>
+                    <span class="text-emerald-300 font-semibold">SELADA (600–800 PPM)</span>
+                </div>
+                <div class="bg-slate-950/70 border border-slate-800 px-3.5 py-2.5 rounded-xl">
+                    <span class="block text-[10px] text-slate-500">TELEMETRY INTERVAL</span>
+                    <span class="text-cyan-300 font-semibold">REAL-TIME SYNC</span>
+                </div>
+            </div>
         </div>
 
         <!-- Grid Kartu Telemetri Sensor (TDS, pH, Suhu, FSM State) -->
@@ -416,7 +473,7 @@
                 <!-- Input URL Web App Google Apps Script -->
                 <div class="bg-emerald-950/30 border border-emerald-500/30 rounded-xl p-4 space-y-3">
                     <label class="block font-mono-tech font-semibold text-emerald-400 text-xs uppercase tracking-wider">
-                        1. ENDPOINT URL GOOGLE APPS SCRIPT WEB APP
+1. ENDPOINT URL GOOGLE APPS SCRIPT WEB APP
                     </label>
                     <div class="flex flex-col sm:flex-row gap-2">
                         <input type="url" id="gsheets-url-input" placeholder="https://script.google.com/macros/s/AKfycbx.../exec" 
@@ -500,6 +557,65 @@ function doGet(e) {
     <!-- JavaScript Logika Sistem & Simulasi Algoritma Skripsi -->
     <script>
         lucide.createIcons();
+
+        // Inisialisasi Penanda 12 Titik pada Jam Bulat Analog
+        function initClockTicks() {
+            const ticksGroup = document.getElementById('clock-ticks');
+            if (!ticksGroup) return;
+            for (let i = 0; i < 12; i++) {
+                const angle = i * 30;
+                const isQuarter = i % 3 === 0;
+                const y1 = isQuarter ? 9 : 11;
+                const y2 = 15;
+                const stroke = isQuarter ? '#34d399' : '#64748b';
+                const width = isQuarter ? '2' : '1.2';
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', '60');
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', '60');
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', stroke);
+                line.setAttribute('stroke-width', width);
+                line.setAttribute('stroke-linecap', 'round');
+                line.setAttribute('transform', `rotate(${angle} 60 60)`);
+                ticksGroup.appendChild(line);
+            }
+        }
+
+        // Pembaruan Jam Analog & Digital Real-Time Setiap Detik
+        function updateRealTimeClock() {
+            const now = new Date();
+            const seconds = now.getSeconds();
+            const minutes = now.getMinutes();
+            const hours = now.getHours();
+
+            // Sudut rotasi jarum jam analog
+            const secDeg = seconds * 6;
+            const minDeg = minutes * 6 + seconds * 0.1;
+            const hourDeg = (hours % 12) * 30 + minutes * 0.5;
+
+            const hourHand = document.getElementById('hour-hand');
+            const minuteHand = document.getElementById('minute-hand');
+            const secondHand = document.getElementById('second-hand');
+
+            if (hourHand) hourHand.setAttribute('transform', `rotate(${hourDeg} 60 60)`);
+            if (minuteHand) minuteHand.setAttribute('transform', `rotate(${minDeg} 60 60)`);
+            if (secondHand) secondHand.setAttribute('transform', `rotate(${secDeg} 60 60)`);
+
+            // Tampilan Digital & Tanggal Indonesia
+            const pad = (n) => String(n).padStart(2, '0');
+            const timeEl = document.getElementById('digital-clock-time');
+            const dateEl = document.getElementById('digital-clock-date');
+
+            if (timeEl) {
+                timeEl.textContent = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+            }
+            if (dateEl) {
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                dateEl.textContent = now.toLocaleDateString('id-ID', options);
+            }
+        }
 
         let state = {
             tds: 685,
@@ -598,362 +714,4 @@ function doGet(e) {
             document.getElementById('val-control-state').textContent = state.controlState;
             document.getElementById('val-last-update').textContent = new Date().toLocaleTimeString('id-ID');
 
-            const durA = (state.doseVol / state.debitA).toFixed(1);
-            const durB = (state.doseVol / state.debitB).toFixed(1);
-            document.getElementById('cal-debit-a').textContent = state.debitA;
-            document.getElementById('cal-dur-a').textContent = durA;
-            document.getElementById('cal-debit-b').textContent = state.debitB;
-            document.getElementById('cal-dur-b').textContent = durB;
-
-            const badgeTds = document.getElementById('badge-tds-state');
-            const barTds = document.getElementById('bar-tds');
-
-            if (!state.isValid) {
-                badgeTds.className = 'px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-slate-800 text-slate-400 border border-slate-700';
-                badgeTds.textContent = 'INVALID_SIG';
-                barTds.className = 'bg-slate-600 h-full transition-all duration-500';
-            } else if (state.tds < state.limitL) {
-                badgeTds.className = 'px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-amber-500/15 text-amber-400 border border-amber-500/30';
-                badgeTds.textContent = 'BELOW_L';
-                barTds.className = 'bg-amber-400 h-full transition-all duration-500 shadow-[0_0_8px_#fbbf24]';
-            } else if (state.tds > state.limitH) {
-                badgeTds.className = 'px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30';
-                badgeTds.textContent = 'OVER_H_LIMIT';
-                barTds.className = 'bg-rose-500 h-full transition-all duration-500 shadow-[0_0_8px_#f43f5e]';
-            } else {
-                badgeTds.className = 'px-2 py-0.5 rounded font-mono-tech text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
-                badgeTds.textContent = 'IN_RANGE';
-                barTds.className = 'bg-emerald-400 h-full transition-all duration-500 shadow-[0_0_8px_#34d399]';
-            }
-
-            const pct = Math.min(100, Math.max(0, (state.tds / 1000) * 100));
-            barTds.style.width = `${pct}%`;
-
-            updatePumpIndicator('a', state.pumpA);
-            updatePumpIndicator('b', state.pumpB);
-        }
-
-        function updatePumpIndicator(pump, isOn) {
-            const led = document.getElementById(`led-pump-${pump}`);
-            const status = document.getElementById(`status-pump-${pump}`);
-            if (isOn) {
-                led.className = `relative w-3 h-3 rounded-full ${pump === 'a' ? 'bg-emerald-400 text-emerald-400' : 'bg-cyan-400 text-cyan-400'} pulse-active`;
-                status.className = `text-[11px] font-mono-tech font-bold px-2.5 py-1 rounded ${pump === 'a' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40'}`;
-                status.textContent = 'ON [RUN]';
-            } else {
-                led.className = 'relative w-3 h-3 rounded-full bg-slate-600';
-                status.className = 'text-[11px] font-mono-tech font-bold px-2.5 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700';
-                status.textContent = 'OFF';
-            }
-        }
-
-        function showBanner(type, title, message) {
-            const banner = document.getElementById('system-banner');
-            const bannerTitle = document.getElementById('banner-title');
-            const bannerMsg = document.getElementById('banner-message');
-            
-            banner.classList.remove('hidden', 'bg-rose-950/70', 'border-rose-500/40', 'text-rose-200', 'bg-amber-950/70', 'border-amber-500/40', 'text-amber-200', 'bg-emerald-950/70', 'border-emerald-500/40', 'text-emerald-200');
-            
-            if (type === 'danger') {
-                banner.classList.add('bg-rose-950/70', 'border-rose-500/40', 'text-rose-200');
-            } else if (type === 'warning') {
-                banner.classList.add('bg-amber-950/70', 'border-amber-500/40', 'text-amber-200');
-            } else {
-                banner.classList.add('bg-emerald-950/70', 'border-emerald-500/40', 'text-emerald-200');
-            }
-
-            bannerTitle.textContent = title;
-            bannerMsg.textContent = message;
-        }
-
-        function dismissBanner() {
-            document.getElementById('system-banner').classList.add('hidden');
-        }
-
-        async function recordLog(durA = 0, durB = 0) {
-            const now = new Date().toLocaleTimeString('id-ID');
-            const entry = {
-                waktu: now,
-                sesi: state.sessionNum,
-                tds: state.isValid ? Math.round(state.tds) : 'INVALID',
-                ph: state.isValid ? state.ph.toFixed(1) : '-',
-                suhu: state.isValid ? state.temp.toFixed(1) : '-',
-                validitas: state.isValid ? 'VALID' : 'FAULT',
-                status_kontrol: state.controlState,
-                durasi_a: durA,
-                durasi_b: durB,
-                synced: false
-            };
-
-            if (state.isValid && tdsChart) {
-                tdsChart.data.labels.push(now);
-                tdsChart.data.datasets[0].data.push(Math.round(state.tds));
-                tdsChart.data.datasets[1].data.push(state.limitH);
-                tdsChart.data.datasets[2].data.push(state.limitL);
-
-                if (tdsChart.data.labels.length > 15) {
-                    tdsChart.data.labels.shift();
-                    tdsChart.data.datasets.forEach(ds => ds.data.shift());
-                }
-                tdsChart.update();
-            }
-
-            if (state.googleSheetsUrl) {
-                try {
-                    await fetch(state.googleSheetsUrl, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(entry)
-                    });
-                    entry.synced = true;
-                } catch (err) {
-                    console.error('Gagal mengirim ke Google Sheets:', err);
-                }
-            }
-
-            state.logs.unshift(entry);
-            if (state.logs.length > 50) state.logs.pop();
-            renderLogTable();
-        }
-
-        function renderLogTable() {
-            const tbody = document.getElementById('log-table-body');
-            tbody.innerHTML = state.logs.map(row => `
-                <tr class="hover:bg-slate-800/40 transition">
-                    <td class="py-2.5 px-4 text-slate-400">${row.waktu}</td>
-                    <td class="py-2.5 px-4 text-slate-300">#0${row.sesi}</td>
-                    <td class="py-2.5 px-4 font-bold ${row.tds < state.limitL ? 'text-amber-400' : row.tds > state.limitH ? 'text-rose-400' : 'text-emerald-400'}">${row.tds}</td>
-                    <td class="py-2.5 px-4 text-cyan-300">${row.ph}</td>
-                    <td class="py-2.5 px-4 text-amber-300">${row.suhu}</td>
-                    <td class="py-2.5 px-4">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${row.validitas === 'VALID' ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}">
-                            ${row.validitas}
-                        </span>
-                    </td>
-                    <td class="py-2.5 px-4 text-slate-200">${row.status_kontrol}</td>
-                    <td class="py-2.5 px-4 text-slate-400">${row.durasi_a}s / ${row.durasi_b}s</td>
-                    <td class="py-2.5 px-4">
-                        ${row.synced 
-                            ? '<span class="text-emerald-400 font-semibold">SYNCED_GSHEETS</span>' 
-                            : '<span class="text-slate-500">LOCAL_BUFFER</span>'}
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        function simulateScenario(type) {
-            if (state.isDosingCycleRunning) {
-                showBanner('warning', 'PIPELINE BUSY', 'Siklus injeksi nutrisi A/B dan jeda pencampuran sedang dieksekusi.');
-                return;
-            }
-
-            if (type === 'high_tds') {
-                state.isValid = true;
-                state.tds = state.limitH + 60;
-                state.pumpA = false;
-                state.pumpB = false;
-                state.controlState = 'ALERT_TDS_HIGH';
-                document.getElementById('algo-step-badge').textContent = 'INTERLOCK: TDS > H';
-                document.getElementById('algo-description').textContent = `> TDS (${state.tds} ppm) > Limit H (${state.limitH} ppm). Pompa dosis dikunci OFF. Diperlukan pengenceran manual.`;
-                document.getElementById('algo-progress').style.width = '100%';
-                showBanner('danger', 'INTERLOCK: TDS MELEBIHI BATAS ATAS (H)', `Terbaca ${state.tds} ppm (> ${state.limitH} ppm). Seluruh pompa dosis dimatikan otomatis.`);
-                updateUI();
-                recordLog(0, 0);
-            } 
-            else if (type === 'sensor_error') {
-                state.isValid = false;
-                state.pumpA = false;
-                state.pumpB = false;
-                state.controlState = 'FAULT_SENSOR_ERR';
-                document.getElementById('algo-step-badge').textContent = 'FAILSAFE: INVALID';
-                document.getElementById('algo-description').textContent = '> Sinyal ADC TDS/1-Wire tidak valid. Fail-safe aktif: aktuator diputus.';
-                document.getElementById('algo-progress').style.width = '0%';
-                showBanner('danger', 'FAIL-SAFE: GANGGUAN PEMBACAAN SENSOR', 'Data sensor tidak valid. Pemberian nutrisi AB Mix dikunci hingga sinyal sensor kembali stabil.');
-                updateUI();
-                recordLog(0, 0);
-            } 
-            else if (type === 'low_tds') {
-                state.isValid = true;
-                state.tds = Math.max(420, state.limitL - 80);
-                runGradualDosingCycle();
-            }
-        }
-
-        function runGradualDosingCycle() {
-            state.isDosingCycleRunning = true;
-            const durA = parseFloat((state.doseVol / state.debitA).toFixed(1));
-            const durB = parseFloat((state.doseVol / state.debitB).toFixed(1));
-
-            state.controlState = 'VALIDASI_3X (< L)';
-            document.getElementById('algo-step-badge').textContent = 'STAGE 1/5: VALIDATE';
-            document.getElementById('algo-description').textContent = `> TDS (${Math.round(state.tds)} ppm) < Limit L (${state.limitL} ppm). Verifikasi 3 sampel valid berturut-turut...`;
-            document.getElementById('algo-progress').style.width = '20%';
-            updateUI();
-            recordLog(0, 0);
-
-            setTimeout(() => {
-                state.pumpA = true;
-                state.pumpB = false;
-                state.controlState = 'DOSING_STOK_A';
-                document.getElementById('algo-step-badge').textContent = 'STAGE 2/5: PUMP_A';
-                document.getElementById('algo-description').textContent = `> GPIO_26 HIGH (${durA}s): Injeksi ${state.doseVol} mL larutan stok A ke tangki kerja.`;
-                document.getElementById('algo-progress').style.width = '40%';
-                updateUI();
-            }, 1500);
-
-            setTimeout(() => {
-                state.pumpA = false;
-                state.controlState = 'MIXING_DELAY_1';
-                document.getElementById('algo-step-badge').textContent = 'STAGE 3/5: DELAY_1';
-                document.getElementById('algo-description').textContent = '> GPIO_26 LOW: Jeda pencampuran awal mencegah presipitasi stok pekat A & B.';
-                document.getElementById('algo-progress').style.width = '60%';
-                updateUI();
-            }, 3500);
-
-            setTimeout(() => {
-                state.pumpB = true;
-                state.controlState = 'DOSING_STOK_B';
-                document.getElementById('algo-step-badge').textContent = 'STAGE 4/5: PUMP_B';
-                document.getElementById('algo-description').textContent = `> GPIO_27 HIGH (${durB}s): Injeksi ${state.doseVol} mL larutan stok B sesuai kalibrasi.`;
-                document.getElementById('algo-progress').style.width = '80%';
-                updateUI();
-            }, 5500);
-
-            setTimeout(() => {
-                state.pumpB = false;
-                state.cumDose += (state.doseVol * 2);
-                state.tds += 95;
-                state.controlState = 'PEMANTAUAN';
-                state.isDosingCycleRunning = false;
-
-                document.getElementById('algo-step-badge').textContent = 'STAGE 5/5: COMPLETE';
-                document.getElementById('algo-description').textContent = `> Homogenisasi selesai. Re-read TDS: ${Math.round(state.tds)} ppm (Target ${state.limitL}–${state.limitH} ppm tercapai).`;
-                document.getElementById('algo-progress').style.width = '100%';
-                
-                showBanner('success', 'DOSING CYCLE COMPLETED', `Injeksi pasangan A (${durA}s) & B (${durB}s) selesai. Konsentrasi stabil di ${Math.round(state.tds)} ppm.`);
-                updateUI();
-                recordLog(durA, durB);
-            }, 8000);
-        }
-
-        function resetSystem() {
-            state.isValid = true;
-            state.pumpA = false;
-            state.pumpB = false;
-            state.isDosingCycleRunning = false;
-            state.tds = Math.round((state.limitL + state.limitH) / 2);
-            state.controlState = 'PEMANTAUAN';
-            state.sessionNum += 1;
-            document.getElementById('algo-step-badge').textContent = 'IDLE / MONITOR';
-            document.getElementById('algo-description').textContent = `> Sistem di-reset ke sesi #0${state.sessionNum}. Nilai TDS berada dalam rentang kerja.`;
-            document.getElementById('algo-progress').style.width = '0%';
-            dismissBanner();
-            updateUI();
-            recordLog(0, 0);
-        }
-
-        function applyParameters() {
-            const newL = parseInt(document.getElementById('input-limit-l').value) || 600;
-            const newH = parseInt(document.getElementById('input-limit-h').value) || 800;
-            if (newL >= newH) {
-                showBanner('warning', 'CONFIG ERROR', 'Parameter LIMIT_L harus lebih kecil daripada LIMIT_H.');
-                return;
-            }
-            state.limitL = newL;
-            state.limitH = newH;
-            state.doseVol = parseFloat(document.getElementById('input-dose-vol').value) || 5;
-            state.debitA = parseFloat(document.getElementById('input-debit-a').value) || 1.5;
-            state.debitB = parseFloat(document.getElementById('input-debit-b').value) || 1.4;
-
-            tdsChart.data.datasets[1].data = Array(tdsChart.data.labels.length).fill(state.limitH);
-            tdsChart.data.datasets[2].data = Array(tdsChart.data.labels.length).fill(state.limitL);
-            tdsChart.update();
-
-            updateUI();
-            showBanner('success', 'PARAMETERS UPDATED', `Threshold diset ke ${state.limitL}–${state.limitH} ppm | Dosis ${state.doseVol} mL/siklus.`);
-        }
-
-        function saveGoogleSheetsUrl() {
-            const url = document.getElementById('gsheets-url-input').value.trim();
-            state.googleSheetsUrl = url;
-            const badge = document.getElementById('gsheets-badge');
-            const text = document.getElementById('gsheets-status-text');
-
-            if (url) {
-                badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono-tech bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
-                badge.querySelector('span').className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
-                text.textContent = 'DB: GSHEETS_ONLINE';
-                closeModal('setupModal');
-                showBanner('success', 'DATABASE CONNECTED', 'Telemetri sensor dan log aktuator kini otomatis tersinkronisasi ke Google Sheets.');
-                recordLog(0, 0);
-            } else {
-                badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono-tech bg-amber-500/10 text-amber-400 border border-amber-500/30';
-                badge.querySelector('span').className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
-                text.textContent = 'DB: LOCAL_CACHE';
-            }
-        }
-
-        async function syncFromGoogleSheets() {
-            if (!state.googleSheetsUrl) {
-                openModal('setupModal');
-                showBanner('warning', 'ENDPOINT NOT CONFIGURED', 'Masukkan URL Web App Google Apps Script terlebih dahulu.');
-                return;
-            }
-            try {
-                const res = await fetch(state.googleSheetsUrl);
-                const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    state.logs = data.map(item => ({ ...item, synced: true }));
-                    renderLogTable();
-                    showBanner('success', 'SYNC COMPLETE', `Berhasil menarik ${data.length} record terbaru dari Google Sheets.`);
-                }
-            } catch (e) {
-                showBanner('danger', 'FETCH FAILED', 'Pastikan izin akses Web App Google Apps Script diatur ke "Anyone".');
-            }
-        }
-
-        function exportCSV() {
-            const headers = ['Waktu', 'Sesi', 'TDS_ppm', 'pH', 'Suhu_C', 'Validitas', 'Status_Kontrol', 'Durasi_Pompa_A_dtk', 'Durasi_Pompa_B_dtk'];
-            const rows = state.logs.map(l => [l.waktu, l.sesi, l.tds, l.ph, l.suhu, l.validitas, l.status_kontrol, l.durasi_a, l.durasi_b]);
-            const csvContent = [headers, ...rows].map(e => e.join(',')).join('\n');
-            
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `SCADA_Log_Hidroponik_Syuhada_${new Date().toISOString().slice(0,10)}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
-
-        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-        function copyCode(elementId) {
-            const text = document.getElementById(elementId).innerText;
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-            showBanner('success', 'COPIED TO CLIPBOARD', 'Kode Google Apps Script siap ditempel ke editor Apps Script.');
-        }
-
-        setInterval(() => {
-            if (!state.isDosingCycleRunning && state.isValid && state.controlState === 'PEMANTAUAN') {
-                state.tds += (Math.random() - 0.52) * 4;
-                state.ph = Math.min(6.8, Math.max(5.6, state.ph + (Math.random() - 0.5) * 0.05));
-                state.temp = Math.min(28.0, Math.max(23.5, state.temp + (Math.random() - 0.5) * 0.1));
-                updateUI();
-            }
-        }, 6000);
-
-        window.onload = function() {
-            initChart();
-            updateUI();
-            recordLog(0, 0);
-        };
-    </script>
-</body>
-</html>
+            const durA = (state.doseVol
